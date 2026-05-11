@@ -1,32 +1,27 @@
-# Ajudante Virtual em C
+# ProjetoAssistenteVirtual
 
-Projeto de ajudante virtual desenvolvido em linguagem C.
+Projeto de um assistente virtual desenvolvido em linguagem C, com interface gráfica usando GTK.
 
 ## Objetivo
 
-Descrever aqui o objetivo do projeto.
-
-## Integrantes
-
-- Nome 1
-- Nome 2
-- Nome 3
+Criar um assistente virtual capaz de receber comandos do usuário e responder de forma simples, com possibilidade de integração futura com APIs.
 
 ## Tecnologias
 
-- C
+- Linguagem C
 - GTK
 - Git/GitHub
+
+## Integrantes
+
+- Fabio
+- Thales Alexandre Soares
+- João Víctor Miranda Carvalho
 
 ## Estrutura do projeto
 
 ```text
-src/       arquivos .c
-include/   arquivos .h
-docs/      documentação do projeto
-assets/    imagens, ícones e outros recursos
-```
-
-## Como executar
-
-Adicionar instruções futuramente.
+src/       Arquivos de código-fonte em C
+include/   Arquivos de cabeçalho .h
+docs/      Documentação e planejamento
+assets/    Imagens, ícones e recursos visuais
