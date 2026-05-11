@@ -14,7 +14,7 @@ Criar um assistente virtual capaz de receber comandos do usuário e responder de
 
 ## Integrantes
 
-- Fabio
+- Fabio Santos Louzada Junior
 - Thales Alexandre Soares
 - João Víctor Miranda Carvalho
 
