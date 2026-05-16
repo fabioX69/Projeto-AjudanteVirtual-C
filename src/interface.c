@@ -1,203 +1,124 @@
-#include "../include/interface.h"
+#include <gtk/gtk.h>
+#include <stdlib.h>
+#include <string.h>
+#include "interface.h"
+#include "ia.h"
 
 typedef struct {
-    GtkWidget *area_conversa;
+    GtkWidget *janela;
+    GtkWidget *area_texto;
+    GtkTextBuffer *buffer_texto;
     GtkWidget *entrada_mensagem;
+    GtkWidget *botao_enviar;
 } InterfaceDados;
 
-static void adicionar_texto(GtkWidget *area_conversa, const char *texto) {
-    GtkTextBuffer *buffer;
+static void adicionar_texto_terminal(InterfaceDados *interface, const char *texto) {
     GtkTextIter fim;
 
-    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(area_conversa));
+    gtk_text_buffer_get_end_iter(interface->buffer_texto, &fim);
+    gtk_text_buffer_insert(interface->buffer_texto, &fim, texto, -1);
 
-    gtk_text_buffer_get_end_iter(buffer, &fim);
-    gtk_text_buffer_insert(buffer, &fim, texto, -1);
-
-    gtk_text_buffer_get_end_iter(buffer, &fim);
-    gtk_text_view_scroll_to_iter(
-        GTK_TEXT_VIEW(area_conversa),
+    GtkTextMark *marca_fim = gtk_text_buffer_create_mark(
+        interface->buffer_texto,
+        NULL,
         &fim,
-        0.0,
-        FALSE,
-        0.0,
-        0.0
+        FALSE
     );
+
+    gtk_text_view_scroll_mark_onscreen(
+        GTK_TEXT_VIEW(interface->area_texto),
+        marca_fim
+    );
+
+    gtk_text_buffer_delete_mark(interface->buffer_texto, marca_fim);
 }
 
 static void enviar_mensagem(GtkWidget *widget, gpointer dados) {
     InterfaceDados *interface = (InterfaceDados *) dados;
 
-    const char *mensagem = gtk_entry_get_text(GTK_ENTRY(interface->entrada_mensagem));
+    const char *texto_digitado =
+        gtk_entry_get_text(GTK_ENTRY(interface->entrada_mensagem));
 
-    if (mensagem == NULL || mensagem[0] == '\0') {
+    if (texto_digitado == NULL || strlen(texto_digitado) == 0) {
         return;
     }
 
-    adicionar_texto(interface->area_conversa, "C:\\Usuario\\Fabio> ");
-    adicionar_texto(interface->area_conversa, mensagem);
-    adicionar_texto(interface->area_conversa, "\n");
+    char *mensagem_usuario = g_strdup(texto_digitado);
 
-    adicionar_texto(interface->area_conversa, "Assistente> ");
-    adicionar_texto(interface->area_conversa, "Entrada recebida. Modulo de IA ainda nao conectado.\n\n");
+    adicionar_texto_terminal(interface, "Você: ");
+    adicionar_texto_terminal(interface, mensagem_usuario);
+    adicionar_texto_terminal(interface, "\n");
 
     gtk_entry_set_text(GTK_ENTRY(interface->entrada_mensagem), "");
+
+    adicionar_texto_terminal(interface, "IA: pensando...\n");
+
+    while (gtk_events_pending()) {
+        gtk_main_iteration();
+    }
+
+    char *resposta_ia = enviar_mensagem_ia(mensagem_usuario);
+
+    if (resposta_ia != NULL) {
+        adicionar_texto_terminal(interface, "IA: ");
+        adicionar_texto_terminal(interface, resposta_ia);
+        adicionar_texto_terminal(interface, "\n\n");
+
+        free(resposta_ia);
+    } else {
+        adicionar_texto_terminal(
+            interface,
+            "IA: Não foi possível obter uma resposta.\n\n"
+        );
+    }
+
+    g_free(mensagem_usuario);
 }
 
-void iniciar_interface(int argc, char *argv[]) {
-    GtkWidget *janela;
-    GtkWidget *caixa_principal;
-    GtkWidget *cabecalho;
-    GtkWidget *area_conversa;
-    GtkWidget *rolagem;
-    GtkWidget *caixa_inferior;
-    GtkWidget *entrada_mensagem;
-    GtkWidget *botao_enviar;
-
-    InterfaceDados *interface;
-
-    gtk_init(&argc, &argv);
-
-    interface = g_malloc(sizeof(InterfaceDados));
-
-    janela = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(janela), "Projeto Assistente Virtual");
-    gtk_window_set_default_size(GTK_WINDOW(janela), 850, 550);
-    gtk_container_set_border_width(GTK_CONTAINER(janela), 8);
-
-    g_signal_connect(janela, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-
-    caixa_principal = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    gtk_widget_set_name(caixa_principal, "caixa-principal");
-    gtk_container_add(GTK_CONTAINER(janela), caixa_principal);
-
-    cabecalho = gtk_label_new("PROJETO ASSISTENTE VIRTUAL");
-    gtk_widget_set_name(cabecalho, "cabecalho");
-    gtk_box_pack_start(GTK_BOX(caixa_principal), cabecalho, FALSE, FALSE, 0);
-
-    rolagem = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(
-        GTK_SCROLLED_WINDOW(rolagem),
-        GTK_POLICY_AUTOMATIC,
-        GTK_POLICY_AUTOMATIC
-    );
-    gtk_widget_set_name(rolagem, "rolagem");
-
-    gtk_box_pack_start(GTK_BOX(caixa_principal), rolagem, TRUE, TRUE, 0);
-
-    area_conversa = gtk_text_view_new();
-    gtk_text_view_set_editable(GTK_TEXT_VIEW(area_conversa), FALSE);
-    gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(area_conversa), FALSE);
-    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(area_conversa), GTK_WRAP_WORD_CHAR);
-    gtk_widget_set_name(area_conversa, "area-conversa");
-
-    gtk_container_add(GTK_CONTAINER(rolagem), area_conversa);
-
-    caixa_inferior = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-    gtk_widget_set_name(caixa_inferior, "caixa-inferior");
-    gtk_box_pack_start(GTK_BOX(caixa_principal), caixa_inferior, FALSE, FALSE, 0);
-
-    entrada_mensagem = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entrada_mensagem), "Digite sua mensagem...");
-    gtk_widget_set_name(entrada_mensagem, "entrada-mensagem");
-
-    gtk_box_pack_start(GTK_BOX(caixa_inferior), entrada_mensagem, TRUE, TRUE, 0);
-
-    botao_enviar = gtk_button_new_with_label("Enviar");
-    gtk_widget_set_name(botao_enviar, "botao-enviar");
-
-    gtk_box_pack_start(GTK_BOX(caixa_inferior), botao_enviar, FALSE, FALSE, 0);
-
-    interface->area_conversa = area_conversa;
-    interface->entrada_mensagem = entrada_mensagem;
-
-    g_signal_connect(botao_enviar, "clicked", G_CALLBACK(enviar_mensagem), interface);
-    g_signal_connect(entrada_mensagem, "activate", G_CALLBACK(enviar_mensagem), interface);
-
+static void aplicar_estilo_cmd(void) {
     GtkCssProvider *css = gtk_css_provider_new();
 
-    gtk_css_provider_load_from_data(css,
+    const char *estilo =
         "window {"
         "   background-color: #000000;"
         "}"
-
-        "#caixa-principal {"
-        "   background-color: #000000;"
-        "}"
-
-        "#cabecalho {"
+        "textview {"
         "   background-color: #000000;"
         "   color: #00ff00;"
         "   font-family: Consolas, monospace;"
-        "   font-size: 20px;"
-        "   font-weight: bold;"
+        "   font-size: 14px;"
+        "}"
+        "textview text {"
+        "   background-color: #000000;"
+        "   color: #00ff00;"
+        "}"
+        "entry {"
+        "   background-color: #000000;"
+        "   color: #00ff00;"
+        "   border: 1px solid #00aa00;"
+        "   caret-color: #00ff00;"
+        "   font-family: Consolas, monospace;"
+        "   font-size: 14px;"
         "   padding: 8px;"
         "}"
-
-        "#rolagem {"
-        "   background-color: #000000;"
-        "   border: 1px solid #003300;"
-        "}"
-
-        "#rolagem viewport {"
-        "   background-color: #000000;"
-        "}"
-
-        "#area-conversa {"
-        "   background-color: #000000;"
-        "   color: #00ff00;"
-        "   font-family: Consolas, monospace;"
-        "   font-size: 14px;"
-        "   padding: 12px;"
-        "}"
-
-        "#area-conversa text {"
-        "   background-color: #000000;"
-        "   color: #00ff00;"
-        "}"
-
-        "#area-conversa text selection {"
-        "   background-color: #003300;"
-        "   color: #00ff00;"
-        "}"
-
-        "#entrada-mensagem {"
-        "   background-color: #000000;"
-        "   color: #00ff00;"
-        "   font-family: Consolas, monospace;"
-        "   font-size: 14px;"
-        "   padding: 10px;"
-        "   border: 1px solid #003300;"
-        "}"
-
-        "#entrada-mensagem:focus {"
-        "   border: 1px solid #00ff00;"
-        "}"
-
-        "#entrada-mensagem selection {"
-        "   background-color: #003300;"
-        "   color: #00ff00;"
-        "}"
-
-        "#botao-enviar {"
-        "   background-color: #000000;"
-        "   color: #00ff00;"
-        "   font-family: Consolas, monospace;"
-        "   font-size: 14px;"
-        "   font-weight: bold;"
-        "   padding: 10px 18px;"
-        "   border: 1px solid #003300;"
-        "}"
-
-        "#botao-enviar:hover {"
+        "button {"
         "   background-color: #001a00;"
         "   color: #00ff00;"
+        "   border: 1px solid #00aa00;"
+        "   font-family: Consolas, monospace;"
+        "   font-size: 14px;"
+        "   padding: 8px 14px;"
         "}"
-
-        "#botao-enviar:active {"
+        "button:hover {"
         "   background-color: #003300;"
-        "   color: #00ff00;"
-        "}",
+        "}"
+        "scrolledwindow {"
+        "   border: 1px solid #00aa00;"
+        "}";
+
+    gtk_css_provider_load_from_data(
+        css,
+        estilo,
         -1,
         NULL
     );
@@ -205,19 +126,140 @@ void iniciar_interface(int argc, char *argv[]) {
     gtk_style_context_add_provider_for_screen(
         gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(css),
-        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
+        GTK_STYLE_PROVIDER_PRIORITY_USER
     );
 
-    adicionar_texto(area_conversa,
-        "Microsoft Windows [versao ProjetoAssistenteVirtual]\n"
-        "(c) Projeto academico em linguagem C. Todos os direitos reservados.\n\n"
-        "Assistente> Sistema iniciado.\n"
-        "Assistente> Ola, Fabio. Como posso ajudar?\n\n"
+    g_object_unref(css);
+}
+
+void iniciar_interface(int argc, char *argv[]) {
+    gtk_init(&argc, &argv);
+
+    aplicar_estilo_cmd();
+
+    InterfaceDados *interface = malloc(sizeof(InterfaceDados));
+
+    interface->janela = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(
+        GTK_WINDOW(interface->janela),
+        "Assistente Virtual"
+    );
+    gtk_window_set_default_size(
+        GTK_WINDOW(interface->janela),
+        800,
+        600
+    );
+    gtk_container_set_border_width(
+        GTK_CONTAINER(interface->janela),
+        15
     );
 
-    gtk_widget_show_all(janela);
+    g_signal_connect(
+        interface->janela,
+        "destroy",
+        G_CALLBACK(gtk_main_quit),
+        NULL
+    );
 
+    GtkWidget *caixa_principal = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_add(
+        GTK_CONTAINER(interface->janela),
+        caixa_principal
+    );
+
+    GtkWidget *rolagem = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(
+        GTK_SCROLLED_WINDOW(rolagem),
+        GTK_POLICY_AUTOMATIC,
+        GTK_POLICY_AUTOMATIC
+    );
+
+    gtk_box_pack_start(
+        GTK_BOX(caixa_principal),
+        rolagem,
+        TRUE,
+        TRUE,
+        0
+    );
+
+    interface->area_texto = gtk_text_view_new();
+    gtk_text_view_set_editable(
+        GTK_TEXT_VIEW(interface->area_texto),
+        FALSE
+    );
+    gtk_text_view_set_cursor_visible(
+        GTK_TEXT_VIEW(interface->area_texto),
+        FALSE
+    );
+    gtk_text_view_set_wrap_mode(
+        GTK_TEXT_VIEW(interface->area_texto),
+        GTK_WRAP_WORD_CHAR
+    );
+
+    interface->buffer_texto =
+        gtk_text_view_get_buffer(GTK_TEXT_VIEW(interface->area_texto));
+
+    gtk_container_add(
+        GTK_CONTAINER(rolagem),
+        interface->area_texto
+    );
+
+    GtkWidget *caixa_entrada = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+
+    gtk_box_pack_start(
+        GTK_BOX(caixa_principal),
+        caixa_entrada,
+        FALSE,
+        FALSE,
+        0
+    );
+
+    interface->entrada_mensagem = gtk_entry_new();
+    gtk_entry_set_placeholder_text(
+        GTK_ENTRY(interface->entrada_mensagem),
+        "Digite sua mensagem..."
+    );
+
+    gtk_box_pack_start(
+        GTK_BOX(caixa_entrada),
+        interface->entrada_mensagem,
+        TRUE,
+        TRUE,
+        0
+    );
+
+    interface->botao_enviar = gtk_button_new_with_label("Enviar");
+
+    gtk_box_pack_start(
+        GTK_BOX(caixa_entrada),
+        interface->botao_enviar,
+        FALSE,
+        FALSE,
+        0
+    );
+
+    g_signal_connect(
+        interface->botao_enviar,
+        "clicked",
+        G_CALLBACK(enviar_mensagem),
+        interface
+    );
+
+    g_signal_connect(
+        interface->entrada_mensagem,
+        "activate",
+        G_CALLBACK(enviar_mensagem),
+        interface
+    );
+
+    adicionar_texto_terminal(
+        interface,
+        "Assistente Virtual iniciado.\n"
+        "Digite uma mensagem e pressione Enter.\n\n"
+    );
+
+    gtk_widget_show_all(interface->janela);
     gtk_main();
 
-    g_free(interface);
+    free(interface);
 }
