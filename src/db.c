@@ -14,9 +14,9 @@ int db_connect()
 
     if (!mysql_real_connect(conn,
                             "localhost",
-                            "assistente_user",
-                            "assistente123",
-                            "db_assistente_virtual",
+                            "",
+                            "",
+                            "",
                             3306,
                             NULL,
                             0))
